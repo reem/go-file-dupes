@@ -1,7 +1,6 @@
-package main
+package filedupes
 
 import (
-	"fmt"
 	"io"
 	"os"
 )
@@ -135,15 +134,4 @@ func names(files [][]*os.File) ([][]string, error) {
 	}
 
 	return strings, nil
-}
-
-func main() {
-	first, _ := os.Open("./filedupes.go")
-	second, _ := os.Open("./filedupes.go")
-	third, _ := os.Open("./README.md")
-	fourth, _ := os.Open("./README.md")
-	fifth, _ := os.Open("./other.go")
-	duplicates, _ := dupes([]*os.File{first, second, third, fourth, fifth})
-	names, _ := names(duplicates)
-	fmt.Println("Dupes: ", names)
 }
