@@ -7,7 +7,7 @@ import (
 
 const dupeTreeBufferSize = 256
 
-func dupes(files []*os.File) ([][]*os.File, error) {
+func Dupes(files []*os.File) ([][]*os.File, error) {
 	trees := make(map[int64]*dupeTree)
 
 	for _, file := range files {
@@ -34,7 +34,9 @@ func dupes(files []*os.File) ([][]*os.File, error) {
 
 	for _, tree := range trees {
 		for _, dupeSet := range tree.dupes() {
-			dupes = append(dupes, dupeSet)
+			if len(dupeSet) != 0 {
+				dupes = append(dupes, dupeSet)
+			}
 		}
 	}
 
@@ -68,7 +70,9 @@ func (d *dupeTree) nodes() []*dupeTree {
 	nodes := []*dupeTree{d}
 
 	for _, child := range d.children {
-		nodes = append(nodes, child.nodes()...)
+		if len(child.nodes()) != 0 {
+			nodes = append(nodes, child.nodes()...)
+		}
 	}
 
 	return nodes
@@ -115,23 +119,4 @@ func (d *dupeTree) push(file *os.File) error {
 	}
 
 	return nil
-}
-
-func names(files [][]*os.File) ([][]string, error) {
-	strings := make([][]string, len(files))
-
-	for _, duplicates := range files {
-		dups := make([]string, len(duplicates))
-		for _, file := range duplicates {
-			stats, err := file.Stat()
-			if err != nil {
-				return nil, err
-			}
-
-			dups = append(dups, stats.Name())
-		}
-		strings = append(strings, dups)
-	}
-
-	return strings, nil
 }
