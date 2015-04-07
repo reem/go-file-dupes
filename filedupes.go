@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-const dupeTreeBufferSize = 256
+const initialDupeTreeBufferSize = 256
 
 func Dupes(files []*os.File) ([][]*os.File, error) {
 	trees := make(map[int64]*dupeTree)
@@ -27,7 +27,7 @@ func Dupes(files []*os.File) ([][]*os.File, error) {
 			tree = trees[filelen]
 		}
 
-		tree.insert(file)
+		tree.insert(file, 1)
 	}
 
 	dupes := [][]*os.File{}
@@ -44,14 +44,14 @@ func Dupes(files []*os.File) ([][]*os.File, error) {
 }
 
 type dupeTree struct {
-	children   map[[dupeTreeBufferSize]byte]*dupeTree
+	children   map[string]*dupeTree
 	duplicates []*os.File
 	leaf       bool
 	deferred   *os.File
 }
 
 func newDupeTree() *dupeTree {
-	return &dupeTree{make(map[[dupeTreeBufferSize]byte]*dupeTree), []*os.File{}, true, nil}
+	return &dupeTree{make(map[string]*dupeTree), []*os.File{}, true, nil}
 }
 
 func (d *dupeTree) dupes() [][]*os.File {
@@ -78,7 +78,7 @@ func (d *dupeTree) nodes() []*dupeTree {
 	return nodes
 }
 
-func (d *dupeTree) insert(file *os.File) {
+func (d *dupeTree) insert(file *os.File, acceleration uint) {
 	if d.leaf && d.deferred != nil {
 		// Push the deferred node, then push the file
 		deferred := d.deferred
@@ -86,20 +86,20 @@ func (d *dupeTree) insert(file *os.File) {
 		d.deferred = nil
 		d.leaf = false
 
-		d.push(deferred)
-		d.push(file)
+		d.push(deferred, acceleration)
+		d.push(file, acceleration)
 	} else if d.leaf && d.deferred == nil {
 		// Defer the file
 		d.deferred = file
 	} else {
 		// Push the file
-		d.push(file)
+        d.push(file, acceleration)
 	}
 }
 
 // Preconditions: d.leaf, d.deferred != nil
-func (d *dupeTree) push(file *os.File) error {
-	var chunk [dupeTreeBufferSize]byte
+func (d *dupeTree) push(file *os.File, acceleration uint) error {
+    chunk := make([]byte, initialDupeTreeBufferSize * acceleration)
 
 	_, err := file.Read(chunk[:])
 
@@ -111,11 +111,11 @@ func (d *dupeTree) push(file *os.File) error {
 	}
 
 	// More to follow
-	if child, ok := d.children[chunk]; ok {
-		child.insert(file)
+	if child, ok := d.children[string(chunk)]; ok {
+		child.insert(file, acceleration + 1)
 	} else {
-		d.children[chunk] = newDupeTree()
-		d.children[chunk].insert(file)
+		d.children[string(chunk)] = newDupeTree()
+		d.children[string(chunk)].insert(file, acceleration + 1)
 	}
 
 	return nil
